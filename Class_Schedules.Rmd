@@ -1,0 +1,68 @@
+---
+author: "Kaleb Crisci"
+date: "10/31/2019"
+title: "Class Schedules"
+output: html_notebook
+---
+
+# Introduction
+This is the class schedule for 2 different semesters and 2 different departments at Chico State. We use web-scraping to pull information off of 4 different pages and combine them into one table.
+
+# Get Data
+First, we load the libraries we will be using. 
+
+```{r, results='hide', message=FALSE}
+include <- function(library_name){
+  if( !(library_name %in% installed.packages()) )
+    install.packages(library_name) 
+  library(library_name, character.only=TRUE)
+}
+include("tidyverse")
+include("dplyr")
+```
+
+This is the function that will pull several columns of data from a given URL. Each URL contains the same class names, so this function will work on any of the Chico State class schedules.  
+The first step is to read the html from the URL using the *read_html* function.  
+Then, we pull only the information that we want from the html variable. The *html_nodes* function takes in the html variable, and the class, id, or tag name that we are trying to get. Then, we have to convert this data into text format using *html_text* function. Without this last step, the data will be represented as objects.
+We also use the pattern matching function *str_extract* to find the year and the semester from the page, and insert this information into the table.  
+Finally, we put the data that we want into a tibble, and return the created table.
+```{r}
+read_class_schedule <- function(url) {
+  html <- read_html(url)
+  subjects <- html %>% html_nodes("td.subj") %>% html_text()
+  class_num <- html %>% html_nodes("td.cat_num") %>% html_text()
+  class_number <- paste(subjects, class_num)
+  section_number <- html %>% html_nodes("td.sect") %>% html_text()
+  course_title <- html %>% html_nodes("td.title") %>% html_text()
+  units <- html %>% html_nodes("td.units") %>% html_text()
+  days <- html %>% html_nodes("td.days") %>% html_text()
+  instructor <- html %>% html_nodes("td.Instructor") %>% html_text()
+  enrollment <- html %>% html_nodes("td.enrtot") %>% html_text()
+  pattern_year <- "20[0-9]{2}"
+  string_year <- html %>% html_nodes(".returntoindexlink") %>% html_text()
+  string_semester <- html %>% html_nodes(".returntoindexlink") %>% html_text()
+  pattern_semester <- "Winter|Spring|Summer|Fall"
+  year <- str_extract(string_year, pattern_year)
+  semester <- str_extract(string_semester, pattern_semester)
+  table <- tibble(class_number, section_number, course_title, units, days, instructor, enrollment, semester, year)
+  return(table)
+}
+```
+
+Using the above function, we get the information from 2 different departments and 2 different semesters, and put it into separate tables.
+```{r}
+CSCI_Spring_2019 <- read_class_schedule("http://ems.csuchico.edu/APSS/schedule/spr2019/CSCI.shtml")
+
+CSCI_Spring_2020 <- read_class_schedule("http://ems.csuchico.edu/APSS/schedule/spr2020/CSCI.shtml")
+
+Math_Spring_2019 <- read_class_schedule("http://ems.csuchico.edu/APSS/schedule/spr2019/MATH.shtml")
+
+Math_Spring_2020 <- read_class_schedule("http://ems.csuchico.edu/APSS/schedule/spr2020/MATH.shtml")
+
+```
+
+Next, we combine all the tables into one table
+```{r}
+full_schedule <- rbind(CSCI_Spring_2019, CSCI_Spring_2020, Math_Spring_2019, Math_Spring_2020)
+```
+
